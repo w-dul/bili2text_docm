@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" width="720" height="360" role="img" aria-labelledby="flowTitle">
+  <title id="flowTitle">bili2text 主流程：提交链接到练习记录的七个环节</title>
+  <defs>
+    <marker id="flowArrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#9AA4B8"></path>
+    </marker>
+    <style>
+      .node { fill: #FFFFFF; stroke: #D9DFEA; stroke-width: 1.2; }
+      .badge { fill: #EEF2FF; stroke: #B9C5FF; stroke-width: 1.2; }
+      .num { fill: #3B5BDB; font: 600 13px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+      .t { fill: #1B1D22; font: 600 14px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+      .ts { fill: #5C6470; font: 400 12px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+      .band { fill: #F3F6FF; stroke: #B9C5FF; stroke-width: 1.2; }
+      .tb { fill: #2F49B8; font: 600 13px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+      .arr { stroke: #9AA4B8; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#flowArrow); }
+    </style>
+  </defs>
+
+  <g>
+    <rect class="node" x="24" y="40" width="200" height="76" rx="10"></rect>
+    <circle class="badge" cx="48" cy="78" r="13"></circle>
+    <text class="num" x="48" y="83" text-anchor="middle">1</text>
+    <text class="t" x="70" y="72">提交链接</text>
+    <text class="ts" x="70" y="92">首页粘贴 B 站链接</text>
+  </g>
+  <g>
+    <rect class="node" x="258" y="40" width="200" height="76" rx="10"></rect>
+    <circle class="badge" cx="282" cy="78" r="13"></circle>
+    <text class="num" x="282" y="83" text-anchor="middle">2</text>
+    <text class="t" x="304" y="72">下载与转写</text>
+    <text class="ts" x="304" y="92">任务页实时显示进度</text>
+  </g>
+  <g>
+    <rect class="node" x="492" y="40" width="200" height="76" rx="10"></rect>
+    <circle class="badge" cx="516" cy="78" r="13"></circle>
+    <text class="num" x="516" y="83" text-anchor="middle">3</text>
+    <text class="t" x="538" y="72">触发修正</text>
+    <text class="ts" x="538" y="92">逐字稿页手动发起</text>
+  </g>
+
+  <g>
+    <rect class="node" x="492" y="194" width="200" height="76" rx="10"></rect>
+    <circle class="badge" cx="516" cy="232" r="13"></circle>
+    <text class="num" x="516" y="237" text-anchor="middle">4</text>
+    <text class="t" x="538" y="226">差异预览</text>
+    <text class="ts" x="538" y="246">应用或放弃 AI 修正</text>
+  </g>
+  <g>
+    <rect class="node" x="258" y="194" width="200" height="76" rx="10"></rect>
+    <circle class="badge" cx="282" cy="232" r="13"></circle>
+    <text class="num" x="282" y="237" text-anchor="middle">5</text>
+    <text class="t" x="304" y="226">自动分段</text>
+    <text class="ts" x="304" y="246">单段 120–300 字</text>
+  </g>
+  <g>
+    <rect class="node" x="24" y="194" width="200" height="76" rx="10"></rect>
+    <circle class="badge" cx="48" cy="232" r="13"></circle>
+    <text class="num" x="48" y="237" text-anchor="middle">6</text>
+    <text class="t" x="70" y="226">打字练习</text>
+    <text class="ts" x="70" y="246">多选段落或自定义文本</text>
+  </g>
+
+  <path class="arr" d="M226 78 L254 78"></path>
+  <path class="arr" d="M460 78 L488 78"></path>
+  <path class="arr" d="M592 118 L592 190"></path>
+  <path class="arr" d="M490 232 L462 232"></path>
+  <path class="arr" d="M256 232 L228 232"></path>
+  <path class="arr" d="M124 272 L124 296"></path>
+
+  <rect class="band" x="24" y="298" width="668" height="44" rx="10"></rect>
+  <text class="tb" x="40" y="325">7 · 记录留存：用时 · CPM · 正确率 · 错误字符</text>
+</svg>

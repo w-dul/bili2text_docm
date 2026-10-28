@@ -184,9 +184,12 @@ docs-site/.vitepress/cache/
 docs-site/.vitepress/dist/
 
 # 文档站生成文件（源文件在根目录：PROJECT.md / LOG.md / SOP.md / assets / showcase）
-docs-site/project.md
-docs-site/log.md
-docs-site/sop.md
+docs-site/pages/project/definition.md
+docs-site/pages/project/log.md
+docs-site/pages/project/sop.md
+docs-site/pages/workspace/commits.md
+docs-site/pages/workspace/map.md
 docs-site/framework.svg
-docs-site/commits.md
+docs-site/flow.svg
+docs-site/pages/public/
 docs-site/public/
