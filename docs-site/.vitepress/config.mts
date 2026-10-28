@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
+  base: '/docs/',
   lang: 'zh-CN',
   title: 'bili2text',
   description: '把 B 站视频转成可修正、可分段的逐字稿，并直接用于打字练习',

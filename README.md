@@ -29,6 +29,30 @@
 
 *PS：这个是老的界面截图*
 
+## 这个仓库在做什么
+
+上游解决的是「视频 → 文本」。这个仓库沿着同一条链路继续往下走，主线是 **转写 → 修正 → 分段 → 打字练习**：
+
+- **LLM 修正**：设置页配置 OpenAI 兼容接口后手动触发；长文按 1500 字分块，只纠错不删减；生成逐字差异预览，应用后成为 `ai_corrected` 版本。
+- **自动分段**：按句末标点切分，单段 120–300 字，超长句二次切分，尾部过短合并；各段拼接可还原原文。
+- **打字练习**：按单段或多段进入，也支持粘贴自定义文本；错字标红占位但继续推进，英文大小写不敏感，标点自动跳过；记录 CPM、正确率、错误字符。
+
+修正是可选的：没配置 LLM 时，转写、分段、练习照常可用。
+
+## 项目结构
+
+```
+bili2text/
+├── src/b2t/                     主模块：页面层、任务执行、文本处理、SQLite 存储
+├── tests/                       pytest
+├── PROJECT.md LOG.md SOP.md     项目定义 / 开发记录 / 开发流程（真源）
+├── docs-site/                   文档站（VitePress），渲染上面三份 md
+├── deploy/                      单镜像装配（Dockerfile / nginx / entrypoint）
+└── showcase/                    展示页
+```
+
+`docs-site` 是附属模块，只读取主模块的文件，不被主模块依赖；`deploy` 是唯一同时知道两边的装配层。
+
 ## 支持的转写引擎
 
 | 引擎 | 类型 | 说明 |
@@ -134,8 +158,28 @@ uv run bili2text srv --host 0.0.0.0 --port 8000
 
 ## 开发
 
-- [开发文档](docs/DEVELOPMENT.md)
-- [更新日志](CHANGELOG.md)
+### 本地运行
+
+```bash
+uv run bili2text srv --port 8000       # 应用，http://127.0.0.1:8000
+npm --prefix docs-site run docs:dev    # 文档站，http://localhost:5173/docs/
+```
+
+### 文档怎么改
+
+- 真源是仓库根目录的 [PROJECT.md](PROJECT.md)、[LOG.md](LOG.md)、[SOP.md](SOP.md)，以及 [showcase/](showcase/) 里的展示页。
+- 文档站由 `docs-site/scripts/sync-docs.mjs` 同步生成，改完源文件执行 `npm --prefix docs-site run docs:sync`，页面热更新。
+- 不要直接编辑 `docs-site/project.md`、`log.md`、`sop.md` 和 `docs-site/public/`，这些每次同步都会被覆盖。
+- 站点外壳（首页、导航、侧栏、`base: '/docs/'`）在 `docs-site/index.md` 与 `docs-site/.vitepress/config.mts`，改动直接热更新，无需同步。
+
+### 测试与构建
+
+```bash
+uv run pytest                              # 后端测试
+npm --prefix docs-site run docs:build      # 文档站静态产物
+```
+
+其他文档：[开发文档](docs/DEVELOPMENT.md) · [更新日志](CHANGELOG.md)
 
 ## 许可证
 

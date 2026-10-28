@@ -178,13 +178,14 @@ outputs/
 *.exe
 .b2t/
 
-# VitePress
+# VitePress（附属模块 docs-site）
 node_modules/
-docs/.vitepress/cache/
-docs/.vitepress/dist/
+docs-site/.vitepress/cache/
+docs-site/.vitepress/dist/
 
-# 文档站生成文件（源文件在根目录：PROJECT.md / LOG.md / SOP.md / showcase/）
-docs/project.md
-docs/log.md
-docs/sop.md
-docs/public/
+# 文档站生成文件（源文件在根目录：PROJECT.md / LOG.md / SOP.md / assets / showcase）
+docs-site/project.md
+docs-site/log.md
+docs-site/sop.md
+docs-site/framework.svg
+docs-site/public/

@@ -1,50 +1,91 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 520" role="img" aria-label="bili2text 框架图">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 556" width="720" height="556" role="img" aria-labelledby="fwTitle">
+  <title id="fwTitle">bili2text 项目框架：主模块、附属文档模块与装配层</title>
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#9aa4b8"/>
+    <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#9AA4B8"></path>
     </marker>
     <style>
-      .box { fill: #ffffff; stroke: #d5dbe7; stroke-width: 1.4; }
-      .accent { fill: #f3f6ff; stroke: #b9c5ff; stroke-width: 1.4; }
-      .t1 { font: 600 16px "PingFang SC", "Microsoft YaHei", sans-serif; fill: #1b1d22; }
-      .t2 { font: 400 12.5px "PingFang SC", "Microsoft YaHei", sans-serif; fill: #5c6470; }
-      .line { stroke: #9aa4b8; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
-      .dash { stroke: #b9c5ff; stroke-width: 1.5; fill: none; stroke-dasharray: 5 4; marker-end: url(#arrow); }
+      .panel { fill: #F7F8FA; stroke: #C9CFDA; stroke-width: 1.2; stroke-dasharray: 6 6; }
+      .panel-focus { fill: #F7F8FA; stroke: #3B5BDB; stroke-width: 1.4; stroke-dasharray: 6 6; }
+      .node { fill: #FFFFFF; stroke: #D9DFEA; stroke-width: 1.2; }
+      .th { fill: #1B1D22; font: 600 14px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+      .thb { fill: #2F49B8; font: 600 14px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+      .t { fill: #1B1D22; font: 400 14px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+      .ts { fill: #5C6470; font: 400 12px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+      .arr { stroke: #9AA4B8; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow); }
     </style>
   </defs>
 
-  <rect class="accent" x="280" y="20" width="260" height="64" rx="10"/>
-  <text class="t1" x="410" y="46" text-anchor="middle">页面层</text>
-  <text class="t2" x="410" y="66" text-anchor="middle">FastAPI + Jinja 模板</text>
+  <rect class="panel-focus" x="44" y="32" width="368" height="358" rx="12"></rect>
+  <text class="thb" x="60" y="54">主模块 · bili2text</text>
 
-  <line class="line" x1="410" y1="84" x2="410" y2="112"/>
+  <g>
+    <rect class="node" x="60" y="66" width="336" height="56" rx="8"></rect>
+    <text class="t" x="72" y="88">页面层：FastAPI + Jinja</text>
+    <text class="ts" x="72" y="108">首页 · 任务 · 逐字稿 · 设置 · 练习</text>
+  </g>
+  <g>
+    <rect class="node" x="60" y="150" width="336" height="56" rx="8"></rect>
+    <text class="t" x="72" y="172">执行层：后台任务</text>
+    <text class="ts" x="72" y="192">线程池 · 下载 · ffmpeg · whisper</text>
+  </g>
+  <g>
+    <rect class="node" x="60" y="234" width="336" height="56" rx="8"></rect>
+    <text class="t" x="72" y="256">能力层：文本处理</text>
+    <text class="ts" x="72" y="276">LLM 修正 · 自动分段 · 打字判定</text>
+  </g>
+  <g>
+    <rect class="node" x="60" y="318" width="336" height="56" rx="8"></rect>
+    <text class="t" x="72" y="340">存储层：SQLite</text>
+    <text class="ts" x="72" y="360">版本 · 分段 · 练习记录 · 工作区</text>
+  </g>
 
-  <rect class="box" x="250" y="114" width="320" height="64" rx="10"/>
-  <text class="t1" x="410" y="140" text-anchor="middle">转写任务</text>
-  <text class="t2" x="410" y="160" text-anchor="middle">线程池 · 下载 · ffmpeg · whisper</text>
+  <rect class="panel" x="448" y="32" width="228" height="358" rx="12"></rect>
+  <text class="th" x="464" y="54">附属模块 · docs-site</text>
 
-  <line class="line" x1="410" y1="178" x2="410" y2="206"/>
+  <g>
+    <rect class="node" x="464" y="66" width="196" height="56" rx="8"></rect>
+    <text class="t" x="476" y="88">文档源</text>
+    <text class="ts" x="476" y="108">三份 md + 展示页</text>
+  </g>
+  <g>
+    <rect class="node" x="464" y="150" width="196" height="56" rx="8"></rect>
+    <text class="t" x="476" y="172">同步</text>
+    <text class="ts" x="476" y="192">sync-docs.mjs</text>
+  </g>
+  <g>
+    <rect class="node" x="464" y="234" width="196" height="56" rx="8"></rect>
+    <text class="t" x="476" y="256">渲染</text>
+    <text class="ts" x="476" y="276">VitePress · base /docs/</text>
+  </g>
+  <g>
+    <rect class="node" x="464" y="318" width="196" height="56" rx="8"></rect>
+    <text class="t" x="476" y="340">产物</text>
+    <text class="ts" x="476" y="360">dist 静态文件</text>
+  </g>
 
-  <rect class="box" x="280" y="208" width="260" height="64" rx="10"/>
-  <text class="t1" x="410" y="234" text-anchor="middle">LLM 修正</text>
-  <text class="t2" x="410" y="254" text-anchor="middle">分块请求 · 差异预览</text>
+  <path class="arr" d="M228 390 L228 418"></path>
+  <path class="arr" d="M562 390 L562 418"></path>
 
-  <line class="line" x1="410" y1="272" x2="410" y2="300"/>
+  <rect class="panel" x="44" y="422" width="632" height="108" rx="12"></rect>
+  <text class="th" x="60" y="446">装配层 · deploy（唯一同时知道两边）</text>
 
-  <rect class="box" x="280" y="302" width="260" height="64" rx="10"/>
-  <text class="t1" x="410" y="328" text-anchor="middle">分段与练习</text>
-  <text class="t2" x="410" y="348" text-anchor="middle">分段算法 · 打字判定</text>
+  <g>
+    <rect class="node" x="60" y="458" width="176" height="56" rx="8"></rect>
+    <text class="t" x="72" y="480">构建</text>
+    <text class="ts" x="72" y="500">Node 生成 dist</text>
+  </g>
+  <g>
+    <rect class="node" x="272" y="458" width="176" height="56" rx="8"></rect>
+    <text class="t" x="284" y="480">镜像</text>
+    <text class="ts" x="284" y="500">python + nginx</text>
+  </g>
+  <g>
+    <rect class="node" x="484" y="458" width="176" height="56" rx="8"></rect>
+    <text class="t" x="496" y="480">路由</text>
+    <text class="ts" x="496" y="500">/ 与 /docs/</text>
+  </g>
 
-  <line class="line" x1="410" y1="366" x2="410" y2="394"/>
-
-  <rect class="accent" x="250" y="396" width="320" height="46" rx="10"/>
-  <text class="t2" x="410" y="424" text-anchor="middle">存储：SQLite + 工作区文件</text>
-
-  <rect class="accent" x="590" y="20" width="210" height="64" rx="10"/>
-  <text class="t1" x="695" y="46" text-anchor="middle">文档知识库</text>
-  <text class="t2" x="695" y="66" text-anchor="middle">使用说明 · 背景 · 基础知识</text>
-
-  <line class="dash" x1="540" y1="52" x2="588" y2="52"/>
-
-  <text class="t2" x="410" y="492" text-anchor="middle">文档模块不属于主流程，只承载说明性内容</text>
+  <path class="arr" d="M236 486 L268 486"></path>
+  <path class="arr" d="M448 486 L480 486"></path>
 </svg>
