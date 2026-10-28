@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>设置 · {{ t("web_title") }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <main class="max-w-4xl mx-auto px-6 py-8 space-y-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <a href="/" class="text-sm text-indigo-600">← {{ t("web_back_home") }}</a>
+    </div>
+
+    <header class="space-y-1">
+      <h1 class="text-2xl font-semibold">设置</h1>
+      <p class="text-sm text-gray-500">配置保存在本地工作区，保存后无需重启即可生效。</p>
+    </header>
+
+    {% if notice %}
+    <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{{ notice }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error }}</div>
+    {% endif %}
+
+    <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-3">
+      <h2 class="text-lg font-medium">转写引擎</h2>
+      <dl class="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt class="text-gray-500">默认 Provider</dt>
+          <dd class="mt-1">{{ default_provider }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">默认模型</dt>
+          <dd class="mt-1">{{ default_model }}</dd>
+        </div>
+        <div class="sm:col-span-2">
+          <dt class="text-gray-500">已启用 Provider</dt>
+          <dd class="mt-1">{{ config.enabled_providers|join(" · ") }}</dd>
+        </div>
+      </dl>
+      <p class="text-xs text-gray-500">转写引擎由启动配置决定，如需变更请使用 bili2text bootstrap 或修改 config.json。</p>
+    </section>
+
+    <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h2 class="text-lg font-medium">LLM 修正</h2>
+        {% if llm.enabled and llm.base_url and llm.api_key and llm.model %}
+        <span class="rounded-full bg-green-100 px-3 py-1 text-xs text-green-700">已启用</span>
+        {% else %}
+        <span class="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">未启用</span>
+        {% endif %}
+      </div>
+
+      {% if test_result %}
+      <div class="rounded-lg border px-4 py-3 text-sm {% if test_result.ok %}border-green-200 bg-green-50 text-green-700{% else %}border-red-200 bg-red-50 text-red-700{% endif %}">
+        测试连接{% if test_result.ok %}成功{% else %}失败{% endif %}：{{ test_result.message }}（{{ test_result.elapsed }} 秒）
+      </div>
+      {% endif %}
+
+      <form method="post" action="/settings/llm" class="space-y-4">
+        <label class="flex items-center gap-3 text-sm">
+          <input type="checkbox" name="enabled" value="on" {% if llm.enabled %}checked{% endif %} class="h-4 w-4">
+          启用 LLM 文本修正
+        </label>
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="space-y-1 sm:col-span-2">
+            <label class="text-sm text-gray-600">Base URL</label>
+            <input name="base_url" value="{{ llm.base_url }}" placeholder="https://api.example.com/v1" class="w-full rounded border px-3 py-2 text-sm">
+          </div>
+          <div class="space-y-1">
+            <label class="text-sm text-gray-600">API Key</label>
+            <div class="flex gap-2">
+              <input id="api-key" type="password" name="api_key" value="" placeholder="{% if api_key_masked %}已保存（{{ api_key_masked }}），留空保持不变{% else %}sk-...{% endif %}" class="w-full rounded border px-3 py-2 text-sm" autocomplete="new-password">
+              <button id="toggle-key" type="button" class="whitespace-nowrap rounded border border-gray-300 px-3 py-2 text-xs hover:bg-gray-50">显示</button>
+            </div>
+            <p class="text-xs text-gray-500">仅保存在本地，不会写入日志或任务事件。</p>
+          </div>
+          <div class="space-y-1">
+            <label class="text-sm text-gray-600">模型名</label>
+            <input name="model" value="{{ llm.model }}" placeholder="gpt-4o-mini" class="w-full rounded border px-3 py-2 text-sm">
+          </div>
+          <div class="space-y-1">
+            <label class="text-sm text-gray-600">请求超时（秒）</label>
+            <input name="timeout_seconds" type="number" min="10" max="300" value="{{ llm.timeout_seconds }}" class="w-full rounded border px-3 py-2 text-sm">
+          </div>
+          <div class="space-y-1 sm:col-span-2">
+            <label class="text-sm text-gray-600">全局术语表（可选，每行一条“错误写法 → 正确写法”）</label>
+            <textarea name="glossary" rows="4" class="w-full rounded border px-3 py-2 font-mono text-sm">{{ llm.glossary }}</textarea>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-3">
+          <button type="submit" class="rounded bg-indigo-600 px-4 py-2 text-sm text-white">保存</button>
+          <button type="submit" formaction="/settings/llm/test" formmethod="post" class="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">测试连接</button>
+        </div>
+      </form>
+
+      <form method="post" action="/settings/llm/reset">
+        <button type="submit" class="text-sm text-red-600 hover:underline">恢复默认 LLM 配置</button>
+      </form>
+    </section>
+
+    <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-3">
+      <h2 class="text-lg font-medium">存储路径</h2>
+      <dl class="space-y-2 text-sm">
+        <div class="flex flex-wrap justify-between gap-2"><dt class="text-gray-500">工作区</dt><dd class="break-all">{{ storage.workspace_root }}</dd></div>
+        <div class="flex flex-wrap justify-between gap-2"><dt class="text-gray-500">下载</dt><dd class="break-all">{{ storage.downloads }}</dd></div>
+        <div class="flex flex-wrap justify-between gap-2"><dt class="text-gray-500">音频</dt><dd class="break-all">{{ storage.audio }}</dd></div>
+        <div class="flex flex-wrap justify-between gap-2"><dt class="text-gray-500">逐字稿</dt><dd class="break-all">{{ storage.transcripts }}</dd></div>
+        <div class="flex flex-wrap justify-between gap-2"><dt class="text-gray-500">元数据</dt><dd class="break-all">{{ storage.metadata }}</dd></div>
+        <div class="flex flex-wrap justify-between gap-2"><dt class="text-gray-500">数据库</dt><dd class="break-all">{{ storage.database }}</dd></div>
+        <div class="flex flex-wrap justify-between gap-2"><dt class="text-gray-500">配置</dt><dd class="break-all">{{ storage.config }}</dd></div>
+      </dl>
+    </section>
+  </main>
+
+  <script>
+    const keyInput = document.getElementById("api-key");
+    document.getElementById("toggle-key").addEventListener("click", (event) => {
+      const isPassword = keyInput.type === "password";
+      keyInput.type = isPassword ? "text" : "password";
+      event.target.textContent = isPassword ? "隐藏" : "显示";
+    });
+  </script>
+</body>
+</html>

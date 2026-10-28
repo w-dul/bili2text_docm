@@ -7,61 +7,210 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-900">
-  <main class="max-w-5xl mx-auto px-6 py-8 space-y-6">
-    <a href="/" class="text-sm text-indigo-600">← {{ t("web_back_home") }}</a>
-
-    <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
-      <h1 class="text-2xl font-semibold">{{ video.title }}</h1>
-      <p class="text-sm text-gray-500">{{ video.engine }} · {{ video.model }}</p>
-      <div class="flex flex-wrap gap-2">
-        {% if video.category_name %}
-        <span class="rounded-full bg-indigo-100 px-3 py-1 text-xs text-indigo-700">{{ video.category_name }}</span>
-        {% endif %}
-        {% for tag in video.tags %}
-        <span class="rounded-full bg-gray-200 px-3 py-1 text-xs text-gray-700">{{ tag.name }}</span>
-        {% endfor %}
+  {% set version_labels = {"original": "原始", "edited": "手动编辑", "ai_corrected": "AI 修正"} %}
+  <main class="max-w-6xl mx-auto px-4 py-8 space-y-6 sm:px-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <a href="/" class="text-sm text-indigo-600">← {{ t("web_back_home") }}</a>
+      <div class="flex items-center gap-3 text-sm">
+        <a href="/settings" class="text-gray-600 hover:text-indigo-600">设置</a>
       </div>
+    </div>
+
+    <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-3">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0 space-y-1">
+          <h1 class="text-2xl font-semibold leading-snug">{{ video.title }}</h1>
+          <p class="text-sm text-gray-500">
+            {{ video.engine }} · {{ video.model }} · {{ video.created_at }}
+          </p>
+          {% if video.source_url %}
+          <a href="{{ video.source_url }}" target="_blank" rel="noreferrer" class="block truncate text-xs text-indigo-600">{{ video.source_url }}</a>
+          {% else %}
+          <p class="text-xs text-gray-500 break-all">{{ video.source_input }}</p>
+          {% endif %}
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="rounded-full bg-indigo-100 px-3 py-1 text-xs text-indigo-700">
+            当前版本：{{ version_labels.get(transcript.kind, transcript.kind) }}
+          </span>
+          <span class="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">
+            {{ active_char_count }} 字
+          </span>
+          <span class="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">
+            已分 {{ segments_count }} 段
+          </span>
+        </div>
+      </div>
+      {% if notice %}
+      <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700">{{ notice }}</div>
+      {% endif %}
+      {% if error %}
+      <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{{ error }}</div>
+      {% endif %}
     </section>
 
-    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div class="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-6 space-y-4">
-        <h2 class="text-lg font-medium">Transcript</h2>
-        <form method="post" action="/videos/{{ video.id }}/edit" class="space-y-4">
-          <textarea name="text" rows="20" class="w-full rounded border px-3 py-2 font-mono text-sm">{{ transcript.text }}</textarea>
-          <button type="submit" class="rounded bg-indigo-600 px-4 py-2 text-white">Save edited version</button>
-        </form>
+    <section class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div class="space-y-6">
+        <section class="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
+          <h2 class="text-lg font-medium">操作</h2>
+
+          <div class="space-y-2">
+            {% if llm_ready %}
+            <form method="post" action="/videos/{{ video.id }}/correct">
+              <button type="submit" {% if correction_task %}disabled{% endif %}
+                class="w-full rounded px-4 py-2 text-sm text-white {% if correction_task %}bg-gray-300 cursor-not-allowed{% else %}bg-indigo-600{% endif %}">
+                {% if correction_task %}修正进行中{% else %}AI 修正{% endif %}
+              </button>
+            </form>
+            {% else %}
+            <button type="button" disabled class="w-full cursor-not-allowed rounded bg-gray-200 px-4 py-2 text-sm text-gray-500">AI 修正</button>
+            {% endif %}
+
+            {% if not llm_enabled %}
+            <p class="text-xs text-gray-500">LLM 修正已关闭。<a class="text-indigo-600" href="/settings">前往设置</a></p>
+            {% elif not llm_ready %}
+            <p class="text-xs text-gray-500">未配置 LLM，<a class="text-indigo-600" href="/settings">前往设置</a></p>
+            {% endif %}
+
+            {% if correction_task %}
+            <a class="block text-xs text-indigo-600" href="/videos/{{ video.id }}/correction/{{ correction_task.id }}">查看修正进度</a>
+            {% endif %}
+          </div>
+
+          <div class="border-t border-gray-100 pt-3 space-y-2">
+            {% if can_practice %}
+            <a href="/videos/{{ video.id }}/typing" class="block w-full rounded border border-gray-300 px-4 py-2 text-center text-sm hover:bg-gray-50">打字练习</a>
+            <p class="text-xs text-gray-500">{{ segments_count }} 段可选，每段按当前激活版本生成。</p>
+            {% else %}
+            <button type="button" disabled class="w-full cursor-not-allowed rounded bg-gray-200 px-4 py-2 text-sm text-gray-500">打字练习</button>
+            <p class="text-xs text-gray-500">逐字稿内容不足 20 字，无法练习。</p>
+            {% endif %}
+          </div>
+
+          <div class="border-t border-gray-100 pt-3">
+            <a class="text-sm text-indigo-600" href="/videos/{{ video.id }}/versions/{{ transcript.version_id }}/download">下载当前版本</a>
+          </div>
+        </section>
+
+        <section class="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
+          <h2 class="text-lg font-medium">分段</h2>
+          {% if segments_count %}
+          <p class="text-sm text-gray-600">当前版本已分为 {{ segments_count }} 段，可直接用于打字练习。</p>
+          {% elif can_practice %}
+          <p class="text-sm text-gray-600">当前版本尚未分段。</p>
+          <form method="post" action="/videos/{{ video.id }}/segments/rebuild">
+            <button type="submit" class="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">生成分段</button>
+          </form>
+          {% else %}
+          <p class="text-sm text-gray-500">内容不足 20 字，暂不生成分段。</p>
+          {% endif %}
+        </section>
+
+        <section class="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
+          <h2 class="text-lg font-medium">分类与标签</h2>
+          <div class="flex flex-wrap gap-2">
+            {% if video.category_name %}
+            <span class="rounded-full bg-indigo-100 px-3 py-1 text-xs text-indigo-700">{{ video.category_name }}</span>
+            {% endif %}
+            {% for tag in video.tags %}
+            <span class="rounded-full bg-gray-200 px-3 py-1 text-xs text-gray-700">{{ tag.name }}</span>
+            {% endfor %}
+          </div>
+          <form method="post" action="/videos/{{ video.id }}/category" class="flex gap-2">
+            <input name="category_name" value="{{ video.category_name or '' }}" class="w-full rounded border px-3 py-2 text-sm" placeholder="分类名称">
+            <button type="submit" class="whitespace-nowrap rounded bg-gray-900 px-3 py-2 text-sm text-white">保存</button>
+          </form>
+          <form method="post" action="/videos/{{ video.id }}/tags" class="flex gap-2">
+            <input name="tag_name" class="w-full rounded border px-3 py-2 text-sm" placeholder="新增标签">
+            <button type="submit" class="whitespace-nowrap rounded bg-gray-900 px-3 py-2 text-sm text-white">添加</button>
+          </form>
+        </section>
       </div>
 
-      <div class="space-y-6">
+      <div class="space-y-6 lg:col-span-2">
         <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
-          <h2 class="text-lg font-medium">Category</h2>
-          <form method="post" action="/videos/{{ video.id }}/category" class="space-y-3">
-            <input name="category_name" value="{{ video.category_name or '' }}" class="w-full rounded border px-3 py-2" placeholder="Category name">
-            <button type="submit" class="rounded bg-gray-900 px-4 py-2 text-white">Update category</button>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h2 class="text-lg font-medium">逐字稿</h2>
+            <p class="text-xs text-gray-500">保存后生成新版本并激活，原版本会保留。</p>
+          </div>
+          <form method="post" action="/videos/{{ video.id }}/edit" class="space-y-3">
+            <textarea id="transcript-text" name="text" rows="22" class="w-full rounded border px-3 py-2 font-mono text-sm leading-6">{{ transcript.text }}</textarea>
+            <button type="submit" class="rounded bg-indigo-600 px-4 py-2 text-sm text-white">保存为新版本</button>
           </form>
         </section>
 
-        <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
-          <h2 class="text-lg font-medium">Tags</h2>
-          <form method="post" action="/videos/{{ video.id }}/tags" class="space-y-3">
-            <input name="tag_name" class="w-full rounded border px-3 py-2" placeholder="Tag name">
-            <button type="submit" class="rounded bg-gray-900 px-4 py-2 text-white">Add tag</button>
-          </form>
-        </section>
-
-        <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
-          <h2 class="text-lg font-medium">Versions</h2>
+        <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-3">
+          <h2 class="text-lg font-medium">版本</h2>
           <div class="space-y-2 text-sm">
             {% for version in versions %}
-            <div class="rounded border px-3 py-2 {% if version.is_active %}border-indigo-300 bg-indigo-50{% else %}border-gray-200{% endif %}">
-              <div class="font-medium">{{ version.kind }} {% if version.is_active %}(active){% endif %}</div>
-              <div class="text-xs text-gray-500 break-all">{{ version.file_path }}</div>
+            <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-3 {% if version.is_active %}border-indigo-300 bg-indigo-50{% else %}border-gray-200{% endif %}">
+              <div class="min-w-0">
+                <div class="font-medium">
+                  {{ version_labels.get(version.kind, version.kind) }}
+                  {% if version.is_active %}<span class="ml-2 rounded-full bg-indigo-600 px-2 py-0.5 text-xs text-white">激活</span>{% endif %}
+                </div>
+                <div class="text-xs text-gray-500">{{ version.char_count }} 字 · {{ version.created_at }}</div>
+              </div>
+              <div class="flex items-center gap-3 text-xs">
+                <a class="text-indigo-600" href="/videos/{{ video.id }}/versions/{{ version.id }}/download">下载</a>
+                {% if not version.is_active %}
+                <form method="post" action="/videos/{{ video.id }}/versions/{{ version.id }}/activate" class="activate-form">
+                  <button type="submit" class="rounded border border-gray-300 px-3 py-1 hover:bg-white">切换</button>
+                </form>
+                {% endif %}
+              </div>
             </div>
             {% endfor %}
           </div>
         </section>
       </div>
     </section>
+
+    <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-3">
+      <h2 class="text-lg font-medium">最近练习记录</h2>
+      {% if typing_records %}
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="border-b text-gray-500">
+            <tr>
+              <th class="py-2 pr-4 font-medium">时间</th>
+              <th class="py-2 pr-4 font-medium">分段</th>
+              <th class="py-2 pr-4 font-medium">字数</th>
+              <th class="py-2 pr-4 font-medium">CPM</th>
+              <th class="py-2 font-medium">正确率</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            {% for record in typing_records %}
+            <tr>
+              <td class="py-2 pr-4 text-gray-600">{{ record.created_at }}</td>
+              <td class="py-2 pr-4">第 {{ record.segment_seq }} 段</td>
+              <td class="py-2 pr-4">{{ record.correct_chars }}</td>
+              <td class="py-2 pr-4">{{ record.cpm }}</td>
+              <td class="py-2">{{ record.accuracy }}%</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-sm text-gray-500">还没有练习记录。</p>
+      {% endif %}
+    </section>
   </main>
+
+  <script>
+    const textarea = document.getElementById("transcript-text");
+    const initialText = textarea.value;
+    document.querySelectorAll(".activate-form").forEach((form) => {
+      form.addEventListener("submit", (event) => {
+        if (textarea.value !== initialText) {
+          if (!window.confirm("未保存的修改将丢失，确认切换版本吗？")) {
+            event.preventDefault();
+          }
+        }
+      });
+    });
+  </script>
 </body>
 </html>

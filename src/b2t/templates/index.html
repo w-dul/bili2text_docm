@@ -8,9 +8,12 @@
 </head>
 <body class="bg-gray-50 text-gray-900">
   <main class="max-w-5xl mx-auto px-6 py-8 space-y-8">
-    <header class="space-y-2">
-      <h1 class="text-3xl font-semibold">{{ t("web_title") }}</h1>
-      <p class="text-sm text-gray-600">{{ t("web_subtitle") }}</p>
+    <header class="flex flex-wrap items-start justify-between gap-4">
+      <div class="space-y-2">
+        <h1 class="text-3xl font-semibold">{{ t("web_title") }}</h1>
+        <p class="text-sm text-gray-600">{{ t("web_subtitle") }}</p>
+      </div>
+      <a href="/settings" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50">设置</a>
     </header>
 
     {% if error %}
@@ -22,16 +25,22 @@
     <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
       <h2 class="text-lg font-medium">{{ t("web_form_title") }}</h2>
       <form method="post" action="/transcribe" class="space-y-4">
-        <textarea name="source" rows="4" placeholder="BV1xxxxxxxxx" class="w-full rounded border px-3 py-2">{{ values.source }}</textarea>
+        <div>
+          <textarea name="source" rows="4" placeholder="BV1xxxxxxxxx&#10;https://www.bilibili.com/video/BV1xxxxxxxxx&#10;C:\path\to\audio.mp3" class="w-full rounded border px-3 py-2">{{ values.source }}</textarea>
+          <p class="mt-2 text-xs text-gray-500">支持每行一条链接或本地文件路径，提交多条时进入批量任务页。</p>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <select name="provider" class="rounded border px-3 py-2">
-            <option value="whisper" {% if values.provider == "whisper" %}selected{% endif %}>whisper</option>
-            <option value="sensevoice" {% if values.provider == "sensevoice" %}selected{% endif %}>sensevoice</option>
-            <option value="volcengine" {% if values.provider == "volcengine" %}selected{% endif %}>volcengine</option>
+            {% for provider in providers %}
+            <option value="{{ provider }}" {% if values.provider == provider %}selected{% endif %}>{{ provider }}</option>
+            {% endfor %}
           </select>
-          <input name="model" value="{{ values.model }}" class="rounded border px-3 py-2">
+          <input name="model" value="{{ values.model }}" class="rounded border px-3 py-2" placeholder="模型">
         </div>
-        <textarea name="prompt" rows="3" class="w-full rounded border px-3 py-2">{{ values.prompt }}</textarea>
+        <details class="text-sm text-gray-600">
+          <summary class="cursor-pointer">转写提示词（可选）</summary>
+          <textarea name="prompt" rows="3" class="mt-2 w-full rounded border px-3 py-2">{{ values.prompt }}</textarea>
+        </details>
         <button type="submit" class="rounded bg-indigo-600 px-4 py-2 text-white">{{ t("web_submit") }}</button>
       </form>
     </section>
@@ -39,7 +48,7 @@
     <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-medium">Videos</h2>
-        <span class="text-sm text-gray-500">{{ videos|length }}</span>
+        <span class="text-sm text-gray-500">共 {{ total_videos }} 条</span>
       </div>
       <div class="space-y-3">
         {% for video in videos %}
@@ -58,7 +67,43 @@
           </div>
         </a>
         {% else %}
-        <p class="text-sm text-gray-500">No videos indexed yet.</p>
+        <p class="text-sm text-gray-500">暂无视频记录。示例输入：BV1xx411c7XD 或本地音频路径。</p>
+        {% endfor %}
+      </div>
+      {% if total_videos > videos|length %}
+      <p class="text-xs text-gray-500">仅显示最近 {{ videos|length }} 条。</p>
+      {% endif %}
+    </section>
+
+    <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
+      <h2 class="text-lg font-medium">最近任务</h2>
+      <div class="space-y-2 text-sm">
+        {% for task in tasks %}
+        <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 px-4 py-3">
+          <div class="min-w-0">
+            <p class="font-medium">
+              {% if task.kind == "correction" %}文本修正{% else %}转写{% endif %}
+              <span class="ml-2 rounded-full px-2 py-0.5 text-xs
+                {% if task.status == "completed" %}bg-green-100 text-green-700
+                {% elif task.status == "failed" %}bg-red-100 text-red-700
+                {% elif task.status == "running" %}bg-blue-100 text-blue-700
+                {% else %}bg-gray-100 text-gray-600{% endif %}">{{ task.status }}</span>
+            </p>
+            <p class="text-gray-500 truncate">{{ task.source_input }}</p>
+          </div>
+          <div class="flex items-center gap-3 text-xs text-gray-500">
+            <span>{{ task.created_at }}</span>
+            {% if task.kind == "correction" and task.video_id %}
+            <a class="text-indigo-600" href="/videos/{{ task.video_id }}/correction/{{ task.id }}">查看</a>
+            {% elif task.video_id %}
+            <a class="text-indigo-600" href="/videos/{{ task.video_id }}">查看</a>
+            {% else %}
+            <a class="text-indigo-600" href="/tasks/{{ task.id }}">查看</a>
+            {% endif %}
+          </div>
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-500">暂无任务。</p>
         {% endfor %}
       </div>
     </section>

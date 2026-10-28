@@ -9,6 +9,7 @@ from b2t.config import Settings
 from b2t.database import AppDatabase
 from b2t.inputs import safe_stem
 from b2t.models import TranscriptResult
+from b2t.segments import segment_text, visible_char_count
 
 
 def sha256_text(text: str) -> str:
@@ -52,22 +53,60 @@ class WorkspaceLibrary:
         return video_id
 
     def save_edited_transcript(self, video_id: int, text: str) -> int:
+        return self._save_version_text(video_id, text, kind="edited", suffix="edited")
+
+    def save_ai_corrected_transcript(self, video_id: int, text: str) -> int:
+        return self._save_version_text(video_id, text, kind="ai_corrected", suffix="ai")
+
+    def _save_version_text(self, video_id: int, text: str, *, kind: str, suffix: str) -> int:
         video = self.database.get_video(video_id)
         if video is None:
             raise RuntimeError(f"video not found: {video_id}")
 
         base_name = safe_stem(str(video["display_name"]) or f"video-{video_id}")
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        path = self.settings.transcripts_edited_dir / f"{base_name}-{video_id}-{timestamp}.txt"
-        path.write_text(text.rstrip() + "\n", encoding="utf-8")
-        return self.database.create_transcript_version(
+        path = self.settings.transcripts_edited_dir / f"{base_name}-{video_id}-{timestamp}-{suffix}.txt"
+        content = text.rstrip() + "\n"
+        path.write_text(content, encoding="utf-8")
+        version_id = self.database.create_transcript_version(
             video_id=video_id,
-            kind="edited",
+            kind=kind,
             file_path=str(path),
-            text_sha256=sha256_text(text.rstrip() + "\n"),
-            char_count=len(text.rstrip() + "\n"),
+            text_sha256=sha256_text(content),
+            char_count=len(content),
             is_active=True,
         )
+        self.rebuild_segments(video_id, version_id, content)
+        return version_id
+
+    def rebuild_segments(self, video_id: int, version_id: int, text: str | None = None) -> list[dict[str, object]]:
+        if text is None:
+            if version_id is None:
+                version = self.database.get_active_transcript_version(video_id)
+            else:
+                version = self.database.get_transcript_version(video_id, version_id)
+            if version is None:
+                raise RuntimeError(f"transcript version not found: video={video_id} version={version_id}")
+            text = Path(version.file_path).read_text(encoding="utf-8")
+        texts = segment_text(text)
+        self.database.replace_segments(video_id=video_id, version_id=version_id, texts=texts)
+        return self.database.list_segments(version_id)
+
+    def ensure_segments(self, video_id: int, version_id: int | None = None) -> list[dict[str, object]]:
+        version = (
+            self.database.get_active_transcript_version(video_id)
+            if version_id is None
+            else self.database.get_transcript_version(video_id, version_id)
+        )
+        if version is None:
+            raise RuntimeError(f"transcript version not found for video {video_id}")
+        segments = self.database.list_segments(version.id)
+        if segments:
+            return segments
+        text = Path(version.file_path).read_text(encoding="utf-8")
+        if visible_char_count(text) < 20:
+            return []
+        return self.rebuild_segments(video_id, version.id, text)
 
     def load_active_transcript(self, video_id: int) -> dict[str, object]:
         version = self.database.get_active_transcript_version(video_id)

@@ -28,6 +28,16 @@ class VolcengineConfig:
 
 
 @dataclass(slots=True)
+class LLMConfig:
+    enabled: bool = False
+    base_url: str = ""
+    api_key: str = ""
+    model: str = ""
+    timeout_seconds: int = 60
+    glossary: str = ""
+
+
+@dataclass(slots=True)
 class AppConfig:
     language: str = DEFAULT_LANGUAGE
     enabled_providers: list[str] = field(default_factory=lambda: ["whisper"])
@@ -36,6 +46,7 @@ class AppConfig:
     default_model: str = "small"
     sensevoice: SenseVoiceConfig = field(default_factory=SenseVoiceConfig)
     volcengine: VolcengineConfig = field(default_factory=VolcengineConfig)
+    llm: LLMConfig = field(default_factory=LLMConfig)
 
     @classmethod
     def load(cls, settings: Settings) -> "AppConfig":
@@ -56,6 +67,7 @@ class AppConfig:
             default_model=data.get("default_model", "small"),
             sensevoice=SenseVoiceConfig(**data.get("sensevoice", {})),
             volcengine=VolcengineConfig(**data.get("volcengine", {})),
+            llm=LLMConfig(**data.get("llm", {})),
         )
 
     def save(self, settings: Settings) -> None:

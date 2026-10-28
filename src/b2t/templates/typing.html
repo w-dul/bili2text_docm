@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>打字练习 · {{ video.title }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .target { font-size: 19px; line-height: 2.1; letter-spacing: .02em; word-break: break-all; user-select: none; }
+    .target .ok { color: #059669; }
+    .target .bad { color: #dc2626; background: rgba(220, 38, 38, .12); border-radius: 3px; }
+    .target .skip { color: #9ca3af; }
+    .target .cur { border-bottom: 2px solid #111827; }
+    .target .rest { color: #6b7280; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <main class="max-w-3xl mx-auto px-6 py-8 space-y-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <a href="{{ select_url }}" class="text-sm text-indigo-600">← 选择其它分段</a>
+      <a href="/videos/{{ video.id }}" class="text-sm text-gray-600 hover:text-indigo-600">返回逐字稿</a>
+    </div>
+
+    <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-2">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-semibold">{{ heading }}</h1>
+          <p class="mt-1 text-sm text-gray-500">{{ video.title }} · {{ target|length }} 字 · 逐字模式</p>
+        </div>
+        <span id="live-status" class="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">未开始</span>
+      </div>
+      <p class="text-xs text-gray-500">英文大小写不敏感，标点符号自动略过，空白字符不要求输入。</p>
+    </section>
+
+    <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
+      <div id="target" class="target relative max-h-[55vh] overflow-y-auto rounded-lg bg-gray-50 p-4" aria-label="练习原文"></div>
+      <textarea id="input" rows="4" class="w-full rounded border px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="在此输入上方文字；中文请使用输入法上屏" spellcheck="false" autocomplete="off"></textarea>
+      <p class="text-xs text-gray-500">英文大小写不敏感；标点符号自动略过，空白字符不要求输入。输错的字符会标红占位，仍可继续往下输入；正确率按已输入字符统计。</p>
+
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div class="rounded-lg bg-gray-50 px-3 py-2">
+          <b id="stat-progress" class="block text-base font-semibold">0/{{ target|length }}</b>
+          <span class="text-xs text-gray-500">进度</span>
+        </div>
+        <div class="rounded-lg bg-gray-50 px-3 py-2">
+          <b id="stat-cpm" class="block text-base font-semibold">计时中</b>
+          <span class="text-xs text-gray-500">字/分钟</span>
+        </div>
+        <div class="rounded-lg bg-gray-50 px-3 py-2">
+          <b id="stat-accuracy" class="block text-base font-semibold">100%</b>
+          <span class="text-xs text-gray-500">正确率</span>
+        </div>
+        <div class="rounded-lg bg-gray-50 px-3 py-2">
+          <b id="stat-errors" class="block text-base font-semibold">0</b>
+          <span class="text-xs text-gray-500">错误字符</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="result" class="hidden rounded-xl border border-green-200 bg-white p-6 space-y-4">
+      <h2 class="text-lg font-medium text-green-700">本段完成</h2>
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div class="rounded-lg bg-gray-50 px-3 py-2"><b id="result-duration" class="block text-base font-semibold">-</b><span class="text-xs text-gray-500">用时</span></div>
+        <div class="rounded-lg bg-gray-50 px-3 py-2"><b id="result-cpm" class="block text-base font-semibold">-</b><span class="text-xs text-gray-500">CPM</span></div>
+        <div class="rounded-lg bg-gray-50 px-3 py-2"><b id="result-accuracy" class="block text-base font-semibold">-</b><span class="text-xs text-gray-500">正确率</span></div>
+        <div class="rounded-lg bg-gray-50 px-3 py-2"><b id="result-errors" class="block text-base font-semibold">-</b><span class="text-xs text-gray-500">错误字符</span></div>
+      </div>
+      <p id="save-status" class="text-xs text-gray-500">正在保存记录…</p>
+      <div class="flex flex-wrap gap-3">
+        <button id="retry" type="button" class="rounded bg-indigo-600 px-4 py-2 text-sm text-white">重练本段</button>
+        <a href="{{ next_url }}" class="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">{{ next_label }}</a>
+        <a href="/videos/{{ video.id }}" class="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">返回逐字稿</a>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const punctuationChars = new Set(Array.from("，。！？；：…、,.!?;:"));
+    const targetChars = Array.from({{ target|tojson }});
+    const requiredChars = [];
+    const requiredIndexForDisplay = targetChars.map((char) => {
+      if (punctuationChars.has(char)) return -1;
+      requiredChars.push(char);
+      return requiredChars.length - 1;
+    });
+    const targetBlocks = {{ target_blocks|tojson }};
+
+    const saveUrl = {{ save_url|tojson }};
+    const saveExtra = {{ save_extra|tojson }};
+    const saveMode = {{ save_mode|tojson }};
+
+    const targetEl = document.getElementById("target");
+    const inputEl = document.getElementById("input");
+    const statusEl = document.getElementById("live-status");
+    const resultEl = document.getElementById("result");
+    const saveStatusEl = document.getElementById("save-status");
+
+    let typedCount = 0;
+    let charStatus = [];
+    let startedAt = null;
+    let finished = false;
+    let composing = false;
+
+    const punctuation = { "，": ",", "。": ".", "！": "!", "？": "?", "；": ";", "：": ":" };
+    function normalizeChar(char) {
+      return punctuation[char] || char;
+    }
+    function sameChar(left, right) {
+      return normalizeChar(left).toLowerCase() === normalizeChar(right).toLowerCase();
+    }
+
+    let currentSpan = null;
+    let lastSpan = null;
+    function render() {
+      targetEl.textContent = "";
+      currentSpan = null;
+      lastSpan = null;
+      let index = 0;
+      targetBlocks.forEach((block) => {
+        if (block.label) {
+          const caption = document.createElement("div");
+          caption.className = "mb-1 text-xs text-gray-400";
+          caption.textContent = block.label;
+          targetEl.appendChild(caption);
+        }
+        const wrapper = document.createElement("div");
+        wrapper.className = "mb-4 last:mb-0";
+        Array.from(block.text).forEach((char) => {
+          const span = document.createElement("span");
+          span.textContent = char;
+          const requiredIndex = requiredIndexForDisplay[index];
+          if (requiredIndex < 0) {
+            span.className = "skip";
+          } else if (requiredIndex < typedCount) {
+            span.className = charStatus[requiredIndex] ? "ok" : "bad";
+          } else if (requiredIndex === typedCount) {
+            span.className = "rest cur";
+            currentSpan = span;
+          } else {
+            span.className = "rest";
+          }
+          lastSpan = span;
+          wrapper.appendChild(span);
+          index += 1;
+        });
+        targetEl.appendChild(wrapper);
+      });
+    }
+
+    function followCursor() {
+      const anchor = currentSpan || lastSpan;
+      if (!anchor) return;
+      const top = anchor.offsetTop;
+      const bottom = top + anchor.offsetHeight;
+      const viewTop = targetEl.scrollTop;
+      const viewBottom = viewTop + targetEl.clientHeight;
+      if (top < viewTop + 8) {
+        targetEl.scrollTop = Math.max(0, top - 8);
+      } else if (bottom > viewBottom - 8) {
+        targetEl.scrollTop = bottom - targetEl.clientHeight + 8;
+      }
+    }
+
+    function counts() {
+      const correct = charStatus.filter(Boolean).length;
+      return { correct, errors: typedCount - correct };
+    }
+
+    function liveStats() {
+      const total = requiredChars.length;
+      const { correct, errors } = counts();
+      const accuracy = typedCount > 0 ? Math.round((correct / typedCount) * 100) : 100;
+      document.getElementById("stat-progress").textContent = `${typedCount}/${total}`;
+      document.getElementById("stat-accuracy").textContent = `${accuracy}%`;
+      document.getElementById("stat-errors").textContent = String(errors);
+      if (startedAt === null) {
+        document.getElementById("stat-cpm").textContent = "计时中";
+      } else {
+        const seconds = (Date.now() - startedAt) / 1000;
+        document.getElementById("stat-cpm").textContent = seconds >= 10
+          ? String(Math.round(correct / (seconds / 60)))
+          : "计时中";
+      }
+    }
+
+    function handleInput() {
+      if (finished || composing) return;
+      let raw = Array.from(inputEl.value).filter((char) => !/\s/.test(char) && !punctuationChars.has(char)).join("");
+      if (raw.length > requiredChars.length) {
+        raw = raw.slice(0, requiredChars.length);
+        inputEl.value = raw;
+      }
+      if (!raw.length) {
+        typedCount = 0;
+        charStatus = [];
+        inputEl.value = "";
+        statusEl.textContent = "未开始";
+        render();
+        liveStats();
+        followCursor();
+        return;
+      }
+      if (startedAt === null) {
+        startedAt = Date.now();
+        statusEl.textContent = "练习中";
+      }
+
+      typedCount = raw.length;
+      charStatus = Array.from(raw).map((char, index) => sameChar(char, requiredChars[index]));
+
+      render();
+      liveStats();
+      followCursor();
+
+      if (typedCount === requiredChars.length) {
+        finish();
+      }
+    }
+
+    async function finish() {
+      finished = true;
+      inputEl.disabled = true;
+      statusEl.textContent = "已完成";
+      const elapsed = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+      const { correct, errors } = counts();
+      const accuracy = typedCount > 0 ? Math.round((correct / typedCount) * 100) : 100;
+      const cpm = Math.round(correct / (elapsed / 60));
+
+      document.getElementById("result-duration").textContent = `${elapsed} 秒`;
+      document.getElementById("result-cpm").textContent = String(cpm);
+      document.getElementById("result-accuracy").textContent = `${accuracy}%`;
+      document.getElementById("result-errors").textContent = String(errors);
+      resultEl.classList.remove("hidden");
+
+      try {
+        const response = await fetch(saveUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...saveExtra,
+            mode: saveMode,
+            duration_seconds: elapsed,
+            correct_chars: correct,
+            error_count: errors,
+          }),
+        });
+        if (!response.ok) throw new Error("save failed");
+        const record = await response.json();
+        document.getElementById("result-cpm").textContent = String(record.cpm);
+        document.getElementById("result-accuracy").textContent = `${record.accuracy}%`;
+        saveStatusEl.textContent = "记录已保存。";
+      } catch (error) {
+        saveStatusEl.textContent = "记录保存失败，可稍后重试。";
+      }
+    }
+
+    inputEl.addEventListener("compositionstart", () => {
+      composing = true;
+    });
+    inputEl.addEventListener("compositionend", () => {
+      composing = false;
+      handleInput();
+    });
+    inputEl.addEventListener("input", (event) => {
+      if (composing || event.isComposing) return;
+      handleInput();
+    });
+    document.getElementById("retry").addEventListener("click", () => {
+      window.location.reload();
+    });
+    window.addEventListener("beforeunload", (event) => {
+      if (startedAt !== null && !finished) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    });
+
+    render();
+    liveStats();
+    followCursor();
+    inputEl.focus({ preventScroll: true });
+  </script>
+</body>
+</html>

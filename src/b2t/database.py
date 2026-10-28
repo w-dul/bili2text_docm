@@ -114,10 +114,52 @@ class AppDatabase:
                     tag_id INTEGER NOT NULL,
                     PRIMARY KEY (video_id, tag_id)
                 );
+
+                CREATE TABLE IF NOT EXISTS transcript_segments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    video_id INTEGER NOT NULL,
+                    version_id INTEGER NOT NULL,
+                    seq INTEGER NOT NULL,
+                    text TEXT NOT NULL,
+                    char_count INTEGER NOT NULL,
+                    created_at TEXT NOT NULL,
+                    UNIQUE (version_id, seq)
+                );
+
+                CREATE TABLE IF NOT EXISTS typing_records (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    video_id INTEGER NOT NULL,
+                    version_id INTEGER NOT NULL,
+                    segment_seq INTEGER NOT NULL,
+                    segment_text TEXT NOT NULL,
+                    mode TEXT NOT NULL,
+                    duration_seconds REAL NOT NULL,
+                    correct_chars INTEGER NOT NULL,
+                    error_count INTEGER NOT NULL,
+                    cpm INTEGER NOT NULL,
+                    accuracy INTEGER NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS correction_previews (
+                    task_id TEXT PRIMARY KEY,
+                    video_id INTEGER NOT NULL,
+                    source_version_id INTEGER NOT NULL,
+                    text TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
                 """
             )
 
-    def create_task(self, *, kind: str, source_input: str, provider: str, model: str) -> TaskRecord:
+    def create_task(
+        self,
+        *,
+        kind: str,
+        source_input: str,
+        provider: str,
+        model: str,
+        video_id: int | None = None,
+    ) -> TaskRecord:
         now = utc_now()
         task = TaskRecord(
             id=uuid.uuid4().hex,
@@ -127,6 +169,7 @@ class AppDatabase:
             provider=provider,
             model=model,
             workspace_root=str(self.settings.workspace_root),
+            video_id=video_id,
             created_at=now,
         )
         with self._connect() as conn:
@@ -134,8 +177,8 @@ class AppDatabase:
                 """
                 INSERT INTO tasks (
                     id, kind, status, source_input, provider, model, workspace_root,
-                    progress_percent, current_stage, current_message, error_message, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    progress_percent, current_stage, current_message, error_message, video_id, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     task.id,
@@ -149,6 +192,7 @@ class AppDatabase:
                     task.current_stage,
                     task.current_message,
                     task.error_message,
+                    task.video_id,
                     task.created_at,
                 ),
             )
@@ -230,6 +274,30 @@ class AppDatabase:
                 """,
                 (error_message, now, task_id),
             )
+
+    def cancel_task(self, task_id: str) -> None:
+        now = utc_now()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = 'cancelled', current_stage = 'cancelled', finished_at = ?
+                WHERE id = ? AND status IN ('queued', 'running')
+                """,
+                (now, task_id),
+            )
+
+    def get_active_correction_task(self, video_id: int) -> TaskRecord | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT * FROM tasks
+                WHERE kind = 'correction' AND video_id = ? AND status IN ('queued', 'running')
+                ORDER BY created_at DESC LIMIT 1
+                """,
+                (video_id,),
+            ).fetchone()
+        return None if row is None else self._task_from_row(row)
 
     def get_task(self, task_id: str) -> TaskRecord | None:
         with self._connect() as conn:
@@ -442,6 +510,150 @@ class AppDatabase:
                 (video_id,),
             ).fetchone()
         return None if row is None else self._version_from_row(row)
+
+    def replace_segments(self, *, video_id: int, version_id: int, texts: list[str]) -> None:
+        now = utc_now()
+        with self._connect() as conn:
+            conn.execute("DELETE FROM transcript_segments WHERE version_id = ?", (version_id,))
+            conn.executemany(
+                """
+                INSERT INTO transcript_segments (video_id, version_id, seq, text, char_count, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        video_id,
+                        version_id,
+                        index,
+                        text,
+                        sum(1 for char in text if not char.isspace()),
+                        now,
+                    )
+                    for index, text in enumerate(texts, start=1)
+                ],
+            )
+
+    def list_segments(self, version_id: int) -> list[dict[str, object]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM transcript_segments WHERE version_id = ? ORDER BY seq ASC",
+                (version_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def count_segments(self, version_id: int) -> int:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS total FROM transcript_segments WHERE version_id = ?",
+                (version_id,),
+            ).fetchone()
+        return int(row["total"]) if row is not None else 0
+
+    def get_segment(self, video_id: int, version_id: int, seq: int) -> dict[str, object] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT * FROM transcript_segments
+                WHERE video_id = ? AND version_id = ? AND seq = ?
+                """,
+                (video_id, version_id, seq),
+            ).fetchone()
+        return None if row is None else dict(row)
+
+    def add_typing_record(
+        self,
+        *,
+        video_id: int,
+        version_id: int,
+        segment_seq: int,
+        segment_text: str,
+        mode: str,
+        duration_seconds: float,
+        correct_chars: int,
+        error_count: int,
+        cpm: int,
+        accuracy: int,
+    ) -> dict[str, object]:
+        now = utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO typing_records (
+                    video_id, version_id, segment_seq, segment_text, mode, duration_seconds,
+                    correct_chars, error_count, cpm, accuracy, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    video_id,
+                    version_id,
+                    segment_seq,
+                    segment_text,
+                    mode,
+                    duration_seconds,
+                    correct_chars,
+                    error_count,
+                    cpm,
+                    accuracy,
+                    now,
+                ),
+            )
+            row = conn.execute(
+                "SELECT * FROM typing_records WHERE id = ?", (cursor.lastrowid,)
+            ).fetchone()
+        assert row is not None
+        return dict(row)
+
+    def list_typing_records(self, video_id: int, *, limit: int = 5) -> list[dict[str, object]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM typing_records
+                WHERE video_id = ?
+                ORDER BY id DESC LIMIT ?
+                """,
+                (video_id, limit),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def list_completed_segment_seqs(self, video_id: int, version_id: int) -> set[int]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT DISTINCT segment_seq FROM typing_records
+                WHERE video_id = ? AND version_id = ?
+                """,
+                (video_id, version_id),
+            ).fetchall()
+        return {int(row["segment_seq"]) for row in rows}
+
+    def save_correction_preview(
+        self,
+        *,
+        task_id: str,
+        video_id: int,
+        source_version_id: int,
+        text: str,
+    ) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO correction_previews (
+                    task_id, video_id, source_version_id, text, created_at
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (task_id, video_id, source_version_id, text, utc_now()),
+            )
+
+    def get_correction_preview(self, task_id: str) -> dict[str, object] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM correction_previews WHERE task_id = ?", (task_id,)
+            ).fetchone()
+        return None if row is None else dict(row)
+
+    def delete_correction_preview(self, task_id: str) -> None:
+        with self._connect() as conn:
+            conn.execute("DELETE FROM correction_previews WHERE task_id = ?", (task_id,))
 
     def create_category(self, name: str) -> dict[str, object]:
         slug = slugify(name)

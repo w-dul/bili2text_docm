@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 修正 · {{ video.title }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .diff-panel { white-space: pre-wrap; word-break: break-word; }
+    .diff-add { background: #d8fbe8; color: #004d26; border-radius: 3px; }
+    .diff-del { color: #9a3412; text-decoration: line-through; opacity: .8; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <main class="max-w-6xl mx-auto px-4 py-8 space-y-6 sm:px-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <a href="/videos/{{ video.id }}" class="text-sm text-indigo-600">← 返回逐字稿</a>
+      <a href="/" class="text-sm text-gray-600 hover:text-indigo-600">返回首页</a>
+    </div>
+
+    <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-3">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-semibold">AI 文本修正</h1>
+          <p class="mt-1 text-sm text-gray-500">{{ video.title }}</p>
+        </div>
+        <span id="task-badge" class="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">{{ task.status }}</span>
+      </div>
+      {% if error %}
+      <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{{ error }}</div>
+      {% endif %}
+    </section>
+
+    {% if task.status in ("queued", "running") %}
+    <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
+      <p id="task-message" class="text-sm text-gray-600">正在等待修正开始…</p>
+      <div class="h-3 overflow-hidden rounded-full bg-gray-200">
+        <div id="task-bar" class="h-full w-0 bg-indigo-600 transition-all"></div>
+      </div>
+      <button id="cancel-button" type="button" class="rounded border border-red-300 px-4 py-2 text-sm text-red-700 hover:bg-red-50">取消修正</button>
+    </section>
+    <script>
+      const taskId = {{ task.id|tojson }};
+      const videoId = {{ video.id|tojson }};
+      async function poll() {
+        const response = await fetch(`/api/tasks/${taskId}/progress`);
+        if (!response.ok) return;
+        const data = await response.json();
+        const percent = Math.max(0, Math.min(100, Math.round((data.progress_percent || 0) * 100)));
+        document.getElementById("task-bar").style.width = `${percent}%`;
+        document.getElementById("task-badge").textContent = data.status;
+        document.getElementById("task-message").textContent = `${data.current_stage || ""} · ${data.current_message || ""}`;
+        if (["completed", "failed", "cancelled"].includes(data.status)) {
+          window.location.reload();
+          return;
+        }
+        setTimeout(poll, 1200);
+      }
+      document.getElementById("cancel-button").addEventListener("click", async () => {
+        await fetch(`/api/tasks/${taskId}/cancel`, { method: "POST" });
+        setTimeout(poll, 300);
+      });
+      poll();
+    </script>
+    {% elif task.status == "failed" or task.status == "cancelled" %}
+    <section class="rounded-xl border border-red-200 bg-white p-6 space-y-4">
+      <h2 class="text-lg font-medium text-red-700">
+        {% if task.status == "cancelled" %}修正已取消{% else %}修正失败{% endif %}
+      </h2>
+      <p class="text-sm text-red-700">{{ task.error_message or ("已取消，未生成任何版本。" if task.status == "cancelled" else "未生成预览。") }}</p>
+      <div class="flex gap-3">
+        <a href="/videos/{{ video.id }}" class="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">返回逐字稿</a>
+        <a href="/videos/{{ video.id }}" class="rounded bg-indigo-600 px-4 py-2 text-sm text-white">重试修正</a>
+      </div>
+    </section>
+    {% elif preview is none %}
+    <section class="rounded-xl border border-red-200 bg-white p-6 space-y-3">
+      <h2 class="text-lg font-medium text-red-700">预览已失效</h2>
+      <p class="text-sm text-red-700">请返回逐字稿页重新发起修正。</p>
+      <a href="/videos/{{ video.id }}" class="inline-block rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">返回逐字稿</a>
+    </section>
+    {% else %}
+    <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h2 class="text-lg font-medium">差异预览</h2>
+        <span class="text-sm text-gray-500">应用后预计可练习 {{ estimate }} 段</span>
+      </div>
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div class="rounded-lg bg-gray-50 p-4">
+          <p class="mb-2 text-xs text-gray-500">原稿（当前激活版本）</p>
+          <div class="diff-panel max-h-[28rem] overflow-auto text-sm leading-7">{{ left_html|safe }}</div>
+        </div>
+        <div class="rounded-lg bg-gray-50 p-4">
+          <p class="mb-2 text-xs text-gray-500">修正稿（预览，未保存）</p>
+          <div class="diff-panel max-h-[28rem] overflow-auto text-sm leading-7">{{ right_html|safe }}</div>
+        </div>
+      </div>
+
+      <form method="post" action="/videos/{{ video.id }}/correction/{{ task.id }}/apply" class="space-y-3">
+        <label class="block text-sm font-medium">修正稿（应用前可手动调整）</label>
+        <textarea name="text" rows="14" class="w-full rounded border px-3 py-2 font-mono text-sm leading-6">{{ corrected }}</textarea>
+        <div class="flex flex-wrap gap-3">
+          <button type="submit" class="rounded bg-indigo-600 px-4 py-2 text-sm text-white">应用修正</button>
+        </div>
+      </form>
+      <form method="post" action="/videos/{{ video.id }}/correction/{{ task.id }}/discard">
+        <button type="submit" class="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">放弃</button>
+      </form>
+    </section>
+    {% endif %}
+  </main>
+</body>
+</html>

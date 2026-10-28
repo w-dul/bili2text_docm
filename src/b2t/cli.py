@@ -320,6 +320,8 @@ def _run_server(*, host: str, port: int, provider: str | None, model: str | None
         default_provider=provider or config.default_provider,
         default_model=model or config.default_model,
         language=config.language,
+        settings=settings,
+        app_config=config,
     )
     uvicorn.run(app_instance, host=host, port=port)
 

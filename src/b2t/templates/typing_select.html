@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>打字练习 · {{ video.title }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <main class="max-w-3xl mx-auto px-6 py-8 space-y-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <a href="/videos/{{ video.id }}" class="text-sm text-indigo-600">← 返回逐字稿</a>
+      <a href="/" class="text-sm text-gray-600 hover:text-indigo-600">返回首页</a>
+    </div>
+
+    <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-2">
+      <h1 class="text-2xl font-semibold">打字练习</h1>
+      <p class="text-sm text-gray-500">{{ video.title }} · 共 {{ active_char_count }} 字</p>
+    </section>
+
+    {% if error %}
+    <section class="rounded-xl border border-red-200 bg-white p-6">
+      <p class="text-sm text-red-700">{{ error }}</p>
+    </section>
+    {% endif %}
+
+    {% if reason %}
+    <section class="rounded-xl border border-red-200 bg-white p-6 space-y-3">
+      <p class="text-sm text-red-700">{{ reason }}</p>
+      <a href="/videos/{{ video.id }}" class="inline-block rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">返回逐字稿</a>
+    </section>
+    {% else %}
+    <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-medium">从原文选择段落</h2>
+        <span class="text-sm text-gray-500">第 1–{{ segments|length }} 段</span>
+      </div>
+      <form action="/videos/{{ video.id }}/typing/combined" method="post" class="space-y-4" id="segment-form">
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {% for segment in segments %}
+          <label class="flex cursor-pointer gap-3 rounded-lg border border-gray-200 px-4 py-3 text-sm hover:border-indigo-300 hover:bg-indigo-50/40">
+            <input type="checkbox" name="seqs" value="{{ segment.seq }}" class="js-segment mt-0.5 h-4 w-4 shrink-0">
+            <span class="min-w-0 flex-1">
+              <span class="flex items-center justify-between gap-2">
+                <span class="font-medium">第 {{ segment.seq }} 段</span>
+                <span class="text-gray-500">{{ segment.char_count }} 字</span>
+              </span>
+              <span class="mt-1 block text-xs leading-5 text-gray-500">{{ segment.text[:80]|replace('\n', ' ') }}{% if segment.char_count > 80 %}…{% endif %}</span>
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <span id="selected-count" class="text-xs text-gray-500">已选 0 段</span>
+          <button id="start-button" type="submit" disabled class="rounded bg-indigo-600 px-4 py-2 text-sm text-white disabled:opacity-50">开始练习</button>
+        </div>
+        <p class="text-xs text-gray-500">可勾选一个或多个段落，按段号顺序拼接后一起练习。英文大小写不敏感，标点符号自动略过；输错的字符会标红占位，仍可继续输入。</p>
+      </form>
+    </section>
+
+    <section class="rounded-xl border border-gray-200 bg-white p-6 space-y-3">
+      <h2 class="text-lg font-medium">自定义文本练习</h2>
+      <p class="text-xs text-gray-500">从任意位置复制或粘贴自己的文本，直接开始练习，不依赖原文分段。</p>
+      <form action="/videos/{{ video.id }}/typing/custom" method="post" class="space-y-3">
+        <textarea name="text" rows="4" required class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="粘贴要练习的文本（至少 10 个字）"></textarea>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p class="text-xs text-gray-500">英文大小写不敏感，标点符号自动略过。</p>
+          <button type="submit" class="rounded bg-indigo-600 px-4 py-2 text-sm text-white">开始练习</button>
+        </div>
+      </form>
+    </section>
+    {% endif %}
+  </main>
+  <script>
+    const boxes = Array.from(document.querySelectorAll(".js-segment"));
+    const countEl = document.getElementById("selected-count");
+    const startButton = document.getElementById("start-button");
+    function syncSelection() {
+      const selected = boxes.filter((box) => box.checked);
+      countEl.textContent = `已选 ${selected.length} 段`;
+      startButton.disabled = selected.length === 0;
+      boxes.forEach((box) => {
+        const card = box.closest("label");
+        card.classList.toggle("border-indigo-400", box.checked);
+        card.classList.toggle("bg-indigo-50/40", box.checked);
+      });
+    }
+    boxes.forEach((box) => box.addEventListener("change", syncSelection));
+    syncSelection();
+  </script>
+</body>
+</html>
