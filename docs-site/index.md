@@ -21,7 +21,10 @@ features:
   - title: 开发流程 SOP
     details: 从项目定义到展示页的固定流程。
     link: /sop
-  - title: 展示页 v5
-    details: 里程碑审阅用的单文件页面。
-    link: /showcase/v5-2026-10-28.html
+  - title: 展示页（幻灯片）
+    details: 里程碑审阅用的单文件演示页，含功能截图。
+    link: /showcase/deck-2026-10-28.html
+  - title: 提交记录
+    details: 由 git log 自动生成的时间线，按天分组。
+    link: /commits
 ---

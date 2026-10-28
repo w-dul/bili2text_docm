@@ -28,6 +28,7 @@ export default defineConfig({
         items: [
           { text: '项目定义', link: '/project' },
           { text: '开发记录', link: '/log' },
+          { text: '提交记录', link: '/commits' },
         ],
       },
       {
@@ -35,7 +36,7 @@ export default defineConfig({
         items: [
           { text: '开发流程 SOP', link: '/sop' },
           { text: '展示页（幻灯片）', link: '/showcase/deck-2026-10-28.html', target: '_blank' },
-          { text: '展示页 v5', link: '/showcase/v5-2026-10-28.html', target: '_blank' },
+          { text: '展示页 v5（卡片式）', link: '/showcase/v5-2026-10-28.html', target: '_blank' },
         ],
       },
     ],
@@ -47,7 +48,7 @@ export default defineConfig({
     returnToTopLabel: '回到顶部',
     lastUpdated: { text: '最后更新' },
     footer: {
-      message: '内容来自 PROJECT.md / LOG.md / SOP.md，由 sync-docs 同步生成',
+      message: '内容来自 PROJECT.md / LOG.md / SOP.md 与 git 历史，由 sync-docs 生成',
       copyright: '单用户本地部署',
     },
   },
