@@ -177,3 +177,14 @@ outputs/
 # Executable files
 *.exe
 .b2t/
+
+# VitePress
+node_modules/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+
+# 文档站生成文件（源文件在根目录：PROJECT.md / LOG.md / SOP.md / showcase/）
+docs/project.md
+docs/log.md
+docs/sop.md
+docs/public/
